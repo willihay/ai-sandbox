@@ -54,6 +54,7 @@ private:
     std::unique_ptr<DirectX::BasicEffect>       m_basicEffect;
     std::unique_ptr<DirectX::CommonStates>      m_commonStates;
     std::unique_ptr<DX::DeviceResources>        m_deviceResources;
+    std::unique_ptr<DirectX::SpriteFont>        m_fontDebugInfo;
     Microsoft::WRL::ComPtr<ID3D11InputLayout>   m_inputLayout;
     std::unique_ptr<DirectX::PrimitiveBatch<DirectX::VertexPositionColor>>  m_primitiveBatch;
     bool                                        m_showDebugInfo;

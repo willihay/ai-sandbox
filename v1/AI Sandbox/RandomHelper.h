@@ -8,8 +8,8 @@ void RandomInit();
 // Generate random angle (in radians) in the range [0,2Pi]
 inline float RandomAngle()
 {
-    float facing = float(rand()) / float(RAND_MAX);
-    return facing * DirectX::XM_2PI;
+    float angle = float(rand()) / float(RAND_MAX);
+    return angle * DirectX::XM_2PI;
 }
 
 // Generate random integer in the range [min,max] (if max-min <= RAND_MAX(32767))

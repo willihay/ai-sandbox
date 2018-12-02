@@ -9,21 +9,32 @@ using namespace DirectX::SimpleMath;
 
 using Microsoft::WRL::ComPtr;
 
-GameObject::GameObject(Vector2 position) :
+GameObject::GameObject(Vector2 position, ID3D11Device2* device) :
     m_acceleration(Vector2::Zero),
-    m_facingAngle(0.f),
+    m_angularVelocity(0.f),
+    m_coefficientFriction(GameObject_DefaultCoefficientFriction),
+    m_coefficientRestitution(GameObject_DefaultCoefficientRestitution),
+    m_forceAccumulated(Vector2::Zero),
+    m_inertia(0.f),
     m_isValidTarget(true),
+    m_mass(GameObject_DefaultMass),
     m_maxAcceleration(GameObject_DefaultMaxAcceleration),
-    m_maxAngularRotation(GameObject_DefaultMaxAngularRotation),
+    m_maxAngularVelocity(GameObject_DefaultMaxAngularVelocity),
     m_maxSpeed(GameObject_DefaultMaxSpeed),
-    m_movementCalculation(MovementCalculationType::MovementCalculation_AddAcceleration),
+    m_movementCalculation(MovementCalculationType::MovementCalculation_AddForces),
     m_position(position),
+    m_rotation(0.f),
     m_speed(0.f),
     m_teamNumber(0),
     m_textureOrigin(Vector2::Zero),
     m_textureTint(Colors::White.v),
+    m_torqueAccumulated(0.f),
     m_velocity(Vector2::Zero)
 {
+    if (device)
+    {
+        CreateTexture(device);
+    }
 }
 
 GameObject::~GameObject()
@@ -42,31 +53,69 @@ void GameObject::Update(World* world, float elapsedTime)
         }
     }
     
-    auto right = Vector2(-std::sinf(m_facingAngle), std::cosf(m_facingAngle));
-    auto forward = Vector2(std::cosf(m_facingAngle), std::sinf(m_facingAngle));
+    // Apply friction.
+    auto friction = -m_velocity;
+    friction.Normalize();
+    friction *= world->GetFrictionCoefficient() * m_mass * World_Gravity;
+    m_forceAccumulated += friction;
 
-    // Set acceleration.
-    m_acceleration = m_accelerationAccumulated;
-    m_accelerationAccumulated = Vector2::Zero;
-    // TODO: apply drag?
+    // TODO: verify this "rotational friction" is valid
+    m_angularVelocity -= m_angularVelocity * world->GetFrictionCoefficient();
 
-    // Update velocity and facing angle.
+    auto right = Vector2(-std::sinf(m_rotation), std::cosf(m_rotation));
+    auto forward = Vector2(std::cosf(m_rotation), std::sinf(m_rotation));
+
+    // ** Update position and velocity using Semi-implicit Euler Method integration (https://en.wikipedia.org/wiki/Semi-implicit_Euler_method)
+
+    // Calculate acceleration.
+    m_acceleration = m_forceAccumulated / m_mass;
+    float angularAcceleration = m_torqueAccumulated / m_inertia;
+
+    // Update velocity.
     m_velocity += m_acceleration * elapsedTime;
+    m_angularVelocity += angularAcceleration * elapsedTime;
+
+    // Apply drag.
+    //auto linearDrag = -m_velocity * (world->GetFrictionCoefficient() * elapsedTime);
+    //m_velocity += linearDrag;
+
+    // Update speed.
     m_speed = m_velocity.Length();
 
-    if (m_speed > m_maxSpeed)
+    // Adjust speed and velocity as necessary for min and max threshholds.
+    if (m_speed < 0.1f)
+    {
+        m_speed = 0.f;
+        m_velocity = Vector2::Zero;
+    }
+    else if (m_speed > m_maxSpeed)
     {
         m_velocity *= m_maxSpeed / m_speed;
     }
 
-    if (m_speed > 0.f)
+    if (std::abs(m_angularVelocity) < 0.001f)
     {
-        m_facingAngle = std::atan2f(m_velocity.y, m_velocity.x);
+        m_angularVelocity = 0.f;
+    }
+    else if (m_angularVelocity > m_maxAngularVelocity)
+    {
+        m_angularVelocity *= m_maxAngularVelocity / m_angularVelocity;
     }
 
     // Update position.
     m_position += m_velocity * elapsedTime;
+    m_rotation += m_angularVelocity * elapsedTime;
+    // TODO: use torque and angular velocity for object rotation instead of replacing the above
+    //       calculation with a rotation in the direction of velocity
 
+    // Turn the object towards its velocity. (TODO: TO BE REPLACED)
+    if (m_speed > 0.f)
+    {
+        m_rotation = std::atan2f(m_velocity.y, m_velocity.x);
+    }
+    // TODO: limit turn amount based on max angular rotation speed.
+
+    // TODO: move this boundary check into World Update() under collision detection / resolution
     // Check boundaries and reflect off walls if necessary.
     auto worldRect = world->GetWorldBoundary();
     if (m_position.x > worldRect.x)
@@ -89,11 +138,15 @@ void GameObject::Update(World* world, float elapsedTime)
         m_position.y = 0.f;
         m_velocity = Vector2::Reflect(m_velocity, Vector2(0, 1));
     }
+
+    // Reset accumulated forces in preparation for the next frame.
+    m_forceAccumulated = Vector2::Zero;
+    m_torqueAccumulated = 0.f;
 }
 
 void GameObject::Render(SpriteBatch* spriteBatch)
 {
-    spriteBatch->Draw(m_texture.Get(), m_position, nullptr, m_textureTint, m_facingAngle, m_textureOrigin);
+    spriteBatch->Draw(m_texture.Get(), m_position, nullptr, m_textureTint, m_rotation, m_textureOrigin);
 }
 
 void GameObject::RenderDebugInfo(PrimitiveBatch<VertexPositionColor>* primitiveBatch)
@@ -141,9 +194,27 @@ void GameObject::CreateTexture(ID3D11Device2* device)
 
     m_textureOrigin.x = float(textureDesc.Width / 2);
     m_textureOrigin.y = float(textureDesc.Height / 2);
+
+    // Calculate inertia based on object mass and texture width (assume circular shape)
+    // TODO: also use Shape to calculate inertia
+    auto radius = m_textureOrigin.x;
+    m_inertia = 0.5f * m_mass * radius * radius;
 }
 
 void GameObject::ResetTexture()
 {
     m_texture.Reset();
+}
+
+void GameObject::AddForceAtPosition(Vector2 force, Vector2 position)
+{
+    AddForce(force);
+    AddTorque(position.Cross(force).Length());
+}
+
+void GameObject::AddImpulseAtPosition(Vector2 impulse, Vector2 position)
+{
+    m_velocity += impulse * m_mass;
+    m_speed = m_velocity.Length();
+    m_angularVelocity += position.Cross(impulse).Length() * m_inertia;
 }

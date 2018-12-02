@@ -19,6 +19,8 @@ FollowBehavior::~FollowBehavior()
 
 void FollowBehavior::Run(World* world, GameObject* object, float elapsedTime)
 {
+    UNREFERENCED_PARAMETER(elapsedTime);
+
     // See if follow target has become invalid.
     if (m_followTarget && !m_followTarget->IsValidTarget())
     {

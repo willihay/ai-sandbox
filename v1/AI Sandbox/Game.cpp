@@ -50,14 +50,14 @@ void Game::Initialize(IUnknown* window, int width, int height, DXGI_MODE_ROTATIO
     m_timer.SetFixedTimeStep(true);
     m_timer.SetTargetElapsedSeconds(1.0 / 60);
 
+    auto device = m_deviceResources->GetD3DDevice();
     auto viewport = m_deviceResources->GetScreenViewport();
 
     // Setup world and its initial teams and players
     m_world->SetWorldBoundary(Vector2(viewport.Width, viewport.Height));
     m_world->CreateTeam();
 
-    auto humanPlayer = std::make_shared<GameObject>(Vector2(viewport.Width / 2.f, viewport.Height / 2.f));
-    humanPlayer->CreateTexture(m_deviceResources->GetD3DDevice());
+    auto humanPlayer = std::make_shared<GameObject>(Vector2(viewport.Width / 2.f, viewport.Height / 2.f), device);
     auto playerInputModule = std::make_shared<PlayerInput>(m_inputResources.get());
     humanPlayer->AddBehaviorModule(playerInputModule);
     m_world->AddPlayer(humanPlayer, 0);
@@ -87,6 +87,7 @@ void Game::Update(DX::StepTimer const& timer)
 
     m_inputResources->Update();
 
+    auto device = m_deviceResources->GetD3DDevice();
     auto kbTracker = m_inputResources->GetKeyboardTracker();
     auto mouseTracker = m_inputResources->GetMouseTracker();
     using ButtonState = Mouse::ButtonStateTracker::ButtonState;
@@ -100,7 +101,7 @@ void Game::Update(DX::StepTimer const& timer)
     {
         // Create new agent.
         auto viewport = m_deviceResources->GetScreenViewport();
-        auto agent = std::make_shared<GameObject>(RandomScreenPosition(viewport));
+        auto agent = std::make_shared<GameObject>(RandomScreenPosition(viewport), device);
         agent->CreateTexture(m_deviceResources->GetD3DDevice());
         agent->SetTextureTint(Colors::Red.v);
         auto followModule = std::make_shared<FollowBehavior>(m_world->GetPlayer(0, 0));
@@ -121,9 +122,9 @@ void Game::Update(DX::StepTimer const& timer)
         if (!m_world->GetPlayer(0, 0))
         {
             // No player on team 0...create one that's human-controlled!
-            auto viewport = m_deviceResources->GetScreenViewport();
-            auto humanPlayer = std::make_shared<GameObject>(Vector2(viewport.Width / 2.f, viewport.Height / 2.f));
-            humanPlayer->CreateTexture(m_deviceResources->GetD3DDevice());
+            auto mouseState = mouseTracker.GetLastState();
+            auto mousePos = Vector2(float(mouseState.x), float(mouseState.y));
+            auto humanPlayer = std::make_shared<GameObject>(mousePos, device);
             auto playerInputModule = std::make_shared<PlayerInput>(m_inputResources.get());
             humanPlayer->AddBehaviorModule(playerInputModule);
             m_world->AddPlayer(humanPlayer, 0);
@@ -161,6 +162,22 @@ void Game::Render()
     m_spriteBatch->Begin();
 
     m_world->Render(m_spriteBatch.get());
+
+    if (m_showDebugInfo)
+    {
+        for (const auto& player : m_world->GetTeam(0))
+        {
+            Vector2 textPos(10.f);
+            std::wstring text;
+
+            text = L"Speed: " + std::to_wstring(player->GetSpeed()) + L" / " + std::to_wstring(player->GetMaxSpeed());
+            m_fontDebugInfo->DrawString(m_spriteBatch.get(), text.c_str(), textPos);
+
+            textPos.y += 20.f;
+            text = L"Accel: " + std::to_wstring(player->GetAcceleration().Length()) + L" / " + std::to_wstring(player->GetMaxAcceleration());
+            m_fontDebugInfo->DrawString(m_spriteBatch.get(), text.c_str(), textPos);
+        }
+    }
 
     m_spriteBatch->End();
 
@@ -293,6 +310,8 @@ void Game::CreateDeviceDependentResources()
 
     m_primitiveBatch = std::make_unique<PrimitiveBatch<VertexPositionColor>>(context);
     m_spriteBatch = std::make_unique<SpriteBatch>(context);
+    m_fontDebugInfo = std::make_unique<SpriteFont>(device, L"Assets\\Consolas_12.spritefont");
+    m_fontDebugInfo->SetDefaultCharacter(L'*');
 
     m_world->CreateAllTextures(device);
 }

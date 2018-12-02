@@ -16,7 +16,9 @@ public:
     void Render(DirectX::SpriteBatch* spriteBatch);
 
     // World attributes
+    float GetFrictionCoefficient() { return m_frictionCoefficient; }
     DirectX::SimpleMath::Vector2 GetWorldBoundary() { return m_worldBoundary; }
+
     void SetWorldBoundary(DirectX::SimpleMath::Vector2 boundary) { m_worldBoundary = boundary; }
 
     // World object functions
@@ -42,5 +44,6 @@ private:
     Teams m_playerTeams; // "all the world's a stage, and [we are] merely players"
 
     // World characteristics
+    float                           m_frictionCoefficient;
     DirectX::SimpleMath::Vector2    m_worldBoundary;
 };

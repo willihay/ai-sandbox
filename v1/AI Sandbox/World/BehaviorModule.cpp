@@ -11,6 +11,6 @@ BehaviorModule::~BehaviorModule()
 {
 }
 
-void BehaviorModule::RenderDebugInfo(DirectX::PrimitiveBatch<DirectX::VertexPositionColor>* primitiveBatch)
+void BehaviorModule::RenderDebugInfo(DirectX::PrimitiveBatch<DirectX::VertexPositionColor>*)
 {
 }

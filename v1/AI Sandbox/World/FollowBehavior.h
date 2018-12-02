@@ -11,8 +11,10 @@ public:
     FollowBehavior(std::shared_ptr<GameObject> target = nullptr);
     virtual ~FollowBehavior();
 
+    // Override functions
     virtual void Run(World* world, GameObject* gameObject, float elapsedTime) override;
 
+    // Module-specific functions
     void SetFollowDistance(float distance) { m_followDistance = distance; }
 
 private:

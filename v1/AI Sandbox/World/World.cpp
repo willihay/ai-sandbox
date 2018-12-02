@@ -1,9 +1,11 @@
 #include "pch.h"
 #include "World.h"
 
+using namespace Config;
 using namespace DirectX;
 
-World::World()
+World::World() :
+    m_frictionCoefficient(World_FrictionCoefficient)
 {
 }
 
@@ -13,8 +15,7 @@ World::~World()
 
 void World::Update(float elapsedTime)
 {
-    // TODO: first, apply drag force to all GameObjects (based on world attribute)?
-
+    // Update all players.
     for (const auto& team : m_playerTeams)
     {
         for (const auto& teamPlayer : team)
@@ -22,6 +23,9 @@ void World::Update(float elapsedTime)
             teamPlayer->Update(this, elapsedTime);
         }
     }
+
+    // Detect and resolve collisions.
+    // TODO
 }
 
 void World::Render(SpriteBatch* spriteBatch)
@@ -64,6 +68,9 @@ void World::CreateTeam()
 
 void World::AddPlayer(std::shared_ptr<GameObject> player, size_t teamNumber)
 {
+    if (!player)
+        return;
+
     if (teamNumber < m_playerTeams.size())
     {
         player->SetTeamNumber(teamNumber);

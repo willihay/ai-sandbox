@@ -112,5 +112,11 @@
   <ItemGroup>
     <None Include="AI Sandbox_TemporaryKey.pfx" />
     <None Include="packages.config" />
+    <None Include="Assets\Consolas_32.spritefont">
+      <Filter>Assets</Filter>
+    </None>
+    <None Include="Assets\Consolas_12.spritefont">
+      <Filter>Assets</Filter>
+    </None>
   </ItemGroup>
 </Project>

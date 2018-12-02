@@ -18,10 +18,10 @@ public:
     PlayerInput(InputResources* inputResources);
     virtual ~PlayerInput();
 
-    virtual void Run(World* world, GameObject* object, float elapsedTime) override;
-    virtual void RenderDebugInfo(DirectX::PrimitiveBatch<DirectX::VertexPositionColor>* primitiveBatch) override;
-
+    // Override functions
     virtual char GetDefaultPriorityLevel() const override { return Config::PlayerInput_DefaultPriorityLevel; }
+    virtual void RenderDebugInfo(DirectX::PrimitiveBatch<DirectX::VertexPositionColor>* primitiveBatch) override;
+    virtual void Run(World* world, GameObject* object, float elapsedTime) override;
 
 private:
     InputResources* m_inputResources;
